@@ -125,7 +125,7 @@ class FileSystem:
         wb.save('AssignmentData.xlsx')
 
 
-def start_server():
+def start_server():#This starts the server and waits for response from function "handler"
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
