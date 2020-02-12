@@ -21,7 +21,7 @@ preorder_sheet = wb['Preorder'] # Set membership_sheet to Membership sheet
 
 
 # Login functions
-class Login():
+class Login:
     def __init__(self):
         self.membership = {}
 
