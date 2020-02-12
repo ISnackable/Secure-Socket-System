@@ -3,13 +3,18 @@
 import subprocess
 subprocess.call('', shell=True)
 
-# importing os, json, hashlib, getpass, datetime, openpyxl libraries
+# importing stuff
 import os
 import json
-from hashlib import pbkdf2_hmac
+from hashlib import pbkdf2_hmac, sha256
 import getpass
 from datetime import datetime
 import socket
+from Cryptodome.Random import get_random_bytes
+from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES  
+from Cryptodome.Util.Padding import pad, unpad
+from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature import pkcs1_15 
 
 # Function to get socket
 def getnewsocket():
@@ -594,6 +599,49 @@ def select_menu_day(choice_of_action):
         day = display_otherdays_menu()
     return option, day
 
+class Cryptostuff:
+    def __init__(self): #This function generates the RSA key for server/client side.
+        print("Generating RSA Key on client side...")
+        self.rsa_keypair = RSA.generate(2048)
+        self.client_private_key = self.rsa_keypair.exportKey().decode()
+        self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
+        clientsocket.sendall(f"CLIENTPUBLICKEY {self.client_public_key}".encode())
+        self.server_public_key = clientsocket.recv(4096).decode()
+
+    def rsa_encrpytion(self):
+        self.rsa_cipher = PKCS1_OAEP.new(self.server_public_key)
+        self.enc_session_key = self.rsa_cipher.encrypt(self.aes_key)
+
+    #def rsa_decrpytion(self):
+
+    def create_digital_signature(self, digest):
+        signer = pkcs1_15.new(self.rsa_keypair)
+        signature=signer.sign(digest)
+        return signature
+
+    def verify_digital_signature(self, digest, signature):
+        verifier = pkcs1_15.new(self.client_public_key.encode())
+        try:
+            verifier.verify(digest,signature)
+            # print("The signature is valid")
+            return True
+        except:
+            # print("The signature is not valid")
+            return False
+
+    def session_key(self):
+        self.aes_key = get_random_bytes(AES.block_size)
+        self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC)
+        self.aes_iv = self.aes_cipher.iv # retrieve the randomly generated iv value
+        
+
+        # return self.enc_session_key
+
+
+
+
+cryptothingy = Cryptostuff()
+
 # Start Program
-customer = Customers()
-customer.user_tracking()
+# customer = Customers()
+# customer.user_tracking()
