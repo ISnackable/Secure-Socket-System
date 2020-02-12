@@ -7,6 +7,10 @@ from hashlib import pbkdf2_hmac
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from captcha.image import ImageCaptcha
+from Cryptodome.Random import get_random_bytes
+from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES  
+from Cryptodome.Util.Padding import pad, unpad
+from Cryptodome.PublicKey import RSA
 
 # Get today's day
 today = datetime.today()
@@ -145,7 +149,7 @@ def start_server():#This starts the server and waits for response from function 
     soc.close()
     print(f"Server stopped at {today}")
 
-def handler(con):
+def handler(con):#This handles server connections input
     print("client connected")
 
     while True:
@@ -153,11 +157,14 @@ def handler(con):
         content = buf.decode() # decode buf into a string
         if len(buf) > 0:
             print(f"Request from Client: {content.split()}")
-
+            if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
+                global cryptothingy
+                command,client_public_key=content.split(" ")
+                cryptothingy=Crytostuff(client_public_key)
+            content=cryptothingy.rsa_decryption()
             if content == 'SHUTDOWN':
                 break
-
-            if content.startswith("CHECKUSER"):
+            elif content.startswith("CHECKUSER"):
                 if login.user_in_system(content.split()[1].strip()):
                     con.sendall(b'TRUE')
                 else:
@@ -232,6 +239,34 @@ def handler(con):
     con.close() #exit from the loop when client sent q or x
     return buf.decode()
 
+#Additional Codes for ACG
+class Crytostuff:
+    def __init__(self,client_public_key):#This function generates the RSA key.
+        self.client_public_key=client_public_key
+        print("Generating RSA Key on server side...")
+        self.rsa_keypair=RSA.generate(2048)
+        self.server_private_key=self.rsa_keypair.exportKey().decode()
+        self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
+        soc.sendall(self.server_public_key.encode())
+        return
+    def rsa_encryption(self):
+
+        return
+    def rsa_decryption(self,encrypted_message):#handles rsa decryption
+        server_private_rsa_cipher = PKCS1_OAEP.new(self.server_private_key)#Client's public key
+        decrypted_message = server_private_rsa_cipher.decrypt(encrypted_message)
+        return decrypted_message
+
+    def get_session_key(self,content):#handles storing session key
+        encrypted_session_key,session_iv=content.split(" ")
+        aes_session_key=self.rsa_decryption(encrypted_message)
+        self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)
+        return
+
+    def aes_decrypt(self):
+
+    def generate_digitalsignature(self):
+        
 # Start program
-login = Login()
-start_server()
+# login = Login()
+# start_server()
