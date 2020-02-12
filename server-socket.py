@@ -7,6 +7,8 @@ from hashlib import pbkdf2_hmac
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from captcha.image import ImageCaptcha
+from Cryptodome.Random import get_random_bytes
+from Cryptodome.PublicKey import RSA
 
 # Get today's day
 today = datetime.today()
@@ -233,7 +235,12 @@ def handler(con):
     return buf.decode()
 
 #Additional Codes for ACG
-
+def generate_rsa_key():#This function generates the RSA key.
+    print("Generating RSA Key on server side...")
+    keypair=RSA.generate(2048)
+    server_private_key=keypair.exportKey().decode()
+    server_public_key=keypair.publickey().exportKey().decode()
+    return server_private_key,server_public_key
 
 # Start program
 login = Login()
