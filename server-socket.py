@@ -3,14 +3,17 @@
 import os
 import socket
 import json
-from hashlib import pbkdf2_hmac
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from captcha.image import ImageCaptcha
+#ACG imports
+from hashlib import pbkdf2_hmac, sha256
 from Cryptodome.Random import get_random_bytes
-from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES  
+from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature import pkcs1_15
+from Cryptodome.Hash import SHA256
 
 # Get today's day
 today = datetime.today()
@@ -139,69 +142,90 @@ def start_server():#This starts the server and waits for response from function 
         print('Bind failed. Error : ' + str(sys.exc_info()))
         print(msg.with_traceback())
         sys.exit() # Exit if any error
-
     soc.listen(1) # Listen for 1 connections
     while True:
         print("waiting a new call at accept()")
-        connection, address = soc.accept() # Accept a connection
-        if handler(connection) == 'SHUTDOWN':
+        global con
+        con, address = soc.accept() # Accept a connection
+        if handler(con) == 'SHUTDOWN':
             break
     soc.close()
     print(f"Server stopped at {today}")
 
 def handler(con):#This handles server connections input
     print("client connected")
-
     while True:
-        buf = con.recv(4096) # buf is of the type of byte
+        buf = con.recv(8192) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
         if len(buf) > 0:
             print(f"Request from Client: {content.split()}")
+            ##Step 1 (GETS CLIENT PUBLIC KEY AND RETURN SERVER PUBLIC KEY)
             if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
                 global cryptothingy
-                command,client_public_key=content.split(" ")
-                cryptothingy=Crytostuff(client_public_key)
-            content=cryptothingy.rsa_decryption()
+                client_public_key=content.split(" ")[1].strip()
+                cryptothingy=Cryptostuff(client_public_key)
+                continue#Reloop handler once public key is gained
+            ##Step 2 (Gets session key from Client [will reloop if invalid])
+            if cryptothingy.aes_session_cipher=="NULL":#This waits untill a session key is created
+                cryptothingy.get_session_key(content)#session key will not be changed hence will reloop if session key invalid
+                continue#reloop handler to wait for new message
+            else:
+            ##Step 3 (Decrypts message so that it is readable)
+                content=cryptothingy.aes_decrypt(content)#decrypts request
+            ##Step 4 (Check client's request)
             if content == 'SHUTDOWN':
                 break
             elif content.startswith("CHECKUSER"):
                 if login.user_in_system(content.split()[1].strip()):
-                    con.sendall(b'TRUE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('TRUE')
+                    con.sendall(encrypted_message_to_send)
                 else:
-                    con.sendall(b'FALSE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('FALSE')
+                    con.sendall(encrypted_message_to_send)
 
             elif content.startswith("ADDUSER"):
                 user = content.split()[1].strip()
                 hash = content.split()[2].strip()
                 login.add_new_user(user, hash)
 
-            elif content == "CAPTCHA":
-                con.sendall(login.captcha())
+            elif content == "CAPTCHA":#This is not encrypted
+                con.sendall(login.captcha())#ONLY THIS IS NOT ENCRYPTED
 
             elif content.startswith("CAPTCHAVALIDATION"):
                 raw_captcha = content.split()[1].strip()
                 if login.captcha_validation(raw_captcha):
-                    con.sendall(b'TRUE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('TRUE')
+                    con.sendall(encrypted_message_to_send)
                 else:
-                    con.sendall(b'FALSE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('FALSE')
+                    con.sendall(encrypted_message_to_send)
 
             elif content.startswith("SENDSALT"):
-                con.sendall(login.send_salt(content.split()[1]).encode())
+                encrypted_message_to_send=cryptothingy.aes_encrypt(login.send_salt(content.split()[1]))
+                con.sendall(encrypted_message_to_send)
 
             elif content.startswith("VERIFYLOGIN"):
                 user = content.split()[1].strip()
                 hash = content.split()[2].strip()
                 if login.verify_login(user, hash):
-                    con.sendall(b'TRUE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('TRUE')
+                    con.sendall(encrypted_message_to_send)
                 else:
-                    con.sendall(b'FALSE')
+                    encrypted_message_to_send=cryptothingy.aes_encrypt('FALSE')
+                    con.sendall(encrypted_message_to_send)
 
             elif content.startswith("CHECKPREORDER"):
                 user = content.split()[1].strip()
-                con.sendall(FileSystem().check_preorder(user).encode())
+                message_to_send=FileSystem().check_preorder(user)
+                encrypted_message_to_send=cryptothingy.aes_encrypt(message_to_send)
+                con.sendall(encrypted_message_to_send)
 
             elif content.startswith("RETRIVEMENU") and content[-1].isnumeric():
-                con.sendall(FileSystem().process_foodmenu(content[-1].strip()).encode())
+                message_to_send=FileSystem().process_foodmenu(content[-1].strip())
+                message_signature=cryptothingy.generate_digitalsignature(message_to_send)
+                send_to_client=message_to_send+"$"+message_signature
+                encrypted_message_to_send=cryptothingy.aes_encrypt(send_to_client)
+                con.sendall(encrypted_message_to_send)
 
             elif content.startswith("ADDMENU"):
                 day = content.split('|')[1].strip()
@@ -228,9 +252,16 @@ def handler(con):#This handles server connections input
                 FileSystem().preorder(user, preorder)
 
             elif content.startswith("RECORDTRANSACTION"):
-                user = content.split('|')[1].strip()
-                food_ordered = content.split('|')[2].strip()
-                FileSystem().record_transaction(user, food_ordered)
+                message=content.split(" ")[1].strip()
+                valid_bool=cryptothingy.check_digitalsignature(message)
+                if valid_bool:
+                    content=message.split("$")[0].strip()
+                    user = content.split('|')[1].strip()
+                    food_ordered = content.split('|')[2].strip()
+                    FileSystem().record_transaction(user, food_ordered)
+                    print("New transaction log added.")
+                else:
+                    print("Invalid Digital Signature. Record Transaction request ingnored.")
         else: # 0 length buf implies client has dropped the con.
             print("client disconnected")
             break # quit this handler immediately and return ""
@@ -240,33 +271,78 @@ def handler(con):#This handles server connections input
     return buf.decode()
 
 #Additional Codes for ACG
-class Crytostuff:
+class Cryptostuff:
     def __init__(self,client_public_key):#This function generates the RSA key.
         self.client_public_key=client_public_key
         print("Generating RSA Key on server side...")
         self.rsa_keypair=RSA.generate(2048)
         self.server_private_key=self.rsa_keypair.exportKey().decode()
         self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
-        soc.sendall(self.server_public_key.encode())
+        self.aes_session_cipher="NULL"
+        print("AES Session cipher erased")
+        con.sendall(self.server_public_key.encode())
+        print("Public key sent to client")
         return
-    def rsa_encryption(self):
 
-        return
     def rsa_decryption(self,encrypted_message):#handles rsa decryption
+        print("RSA decryption...")
         server_private_rsa_cipher = PKCS1_OAEP.new(self.server_private_key)#Client's public key
         decrypted_message = server_private_rsa_cipher.decrypt(encrypted_message)
-        return decrypted_message
+        print("RSA decryption success")
+        return decrypted_message.decode()
 
     def get_session_key(self,content):#handles storing session key
-        encrypted_session_key,session_iv=content.split(" ")
-        aes_session_key=self.rsa_decryption(encrypted_message)
-        self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)
+        try:#incase something goes wrong in split
+            if content.startswith("1$"):
+                print("Get Session Key...")
+                encrypted_AES_key_WITH_RSA=content.split("$")[1]#Encrypted AES Key
+                session_iv=content.split("$")[2]
+                aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
+                self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)#Stores session key to class
+                print("Session Key successfully grabbed")
+                con.sendall("1$".encode())
+            else:
+                print("Invalid session key")
+                con.sendall("0$".encode())
+        except:
+            con.sendall("0$".encode())
         return
 
-    def aes_decrypt(self):
+    def aes_decrypt(self,content):#handles aes decryption
+        print("Aes Decrypting...")
+        plain_text=unpad(self.aes_session_cipher.decrypt(content),AES.block_size)
+        print("Aes Decryption success")
+        self.aes_session_cipher="NULL"
+        print("AES Session cipher erased")
+        return plain_text
+    
+    def aes_encrypt(self,content):#handles aes encryption
+        print("AES encrypting...")
+        ciphertext = self.aes_session_cipher.encrypt(pad(content, AES.block_size))
+        print("AES succesfully encrypted")
+        return ciphertext
 
-    def generate_digitalsignature(self):
-        
+    def generate_digitalsignature(self,content):#Returns digital signature for server with content
+        print("Generating Digital Signature")
+        digest = SHA256.new(content.encode())
+        signer = pkcs1_15.new(self.rsa_keypair)
+        signature = signer.sign(digest)
+        print("Digital Signature created.")
+        return signature
+    
+    def check_digitalsignature(self,content):#Returns whether digital signature is valid
+        print("Checking Client's Digital Signature")
+        message,signature=content.split("$")
+        digest=SHA256.new(message.encode())
+        verifier = pkcs1_15.new(self.client_public_key)
+        try:
+            verifier.verify(digest,signature)
+            print("The signature is valid...")
+            return True
+        except:
+            print("The signature is not valid...")
+            return False
+    
 # Start program
-# login = Login()
-# start_server()
+login = Login()
+start_server()
