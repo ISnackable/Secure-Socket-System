@@ -157,6 +157,7 @@ def handler(con):#This handles server connections input
     while True:
         buf = con.recv(8192) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
+        print(content)
         if len(buf) > 0:
             print(f"Request from Client: {content.split()}")
             ##Step 1 (GETS CLIENT PUBLIC KEY AND RETURN SERVER PUBLIC KEY)
@@ -172,6 +173,7 @@ def handler(con):#This handles server connections input
             else:
             ##Step 3 (Decrypts message so that it is readable)
                 content=cryptothingy.aes_decrypt(content)#decrypts request
+                print("Session key used")
             ##Step 4 (Check client's request)
             if content == 'SHUTDOWN':
                 break
@@ -262,6 +264,8 @@ def handler(con):#This handles server connections input
                     print("New transaction log added.")
                 else:
                     print("Invalid Digital Signature. Record Transaction request ingnored.")
+            cryptothingy.aes_session_cipher="NULL"
+            print("AES Session cipher erased")
         else: # 0 length buf implies client has dropped the con.
             print("client disconnected")
             break # quit this handler immediately and return ""
@@ -282,6 +286,7 @@ class Cryptostuff:
         print("AES Session cipher erased")
         con.sendall(self.server_public_key.encode())
         print("Public key sent to client")
+        print("Key exchange success on server side.")
         return
 
     def rsa_decryption(self,encrypted_message):#handles rsa decryption
@@ -312,8 +317,6 @@ class Cryptostuff:
         print("Aes Decrypting...")
         plain_text=unpad(self.aes_session_cipher.decrypt(content),AES.block_size)
         print("Aes Decryption success")
-        self.aes_session_cipher="NULL"
-        print("AES Session cipher erased")
         return plain_text
     
     def aes_encrypt(self,content):#handles aes encryption
