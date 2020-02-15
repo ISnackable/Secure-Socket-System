@@ -3,14 +3,17 @@
 import os
 import socket
 import json
-from hashlib import pbkdf2_hmac
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from captcha.image import ImageCaptcha
+#ACG imports
+from hashlib import pbkdf2_hmac, sha256
 from Cryptodome.Random import get_random_bytes
-from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES  
+from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
+from Cryptodome.Signature import pkcs1_15
+from Cryptodome.Hash import SHA256
 
 # Get today's day
 today = datetime.today()
@@ -139,7 +142,6 @@ def start_server():#This starts the server and waits for response from function 
         print('Bind failed. Error : ' + str(sys.exc_info()))
         print(msg.with_traceback())
         sys.exit() # Exit if any error
-
     soc.listen(1) # Listen for 1 connections
     while True:
         print("waiting a new call at accept()")
@@ -151,7 +153,6 @@ def start_server():#This starts the server and waits for response from function 
 
 def handler(con):#This handles server connections input
     print("client connected")
-
     while True:
         buf = con.recv(4096) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
@@ -161,7 +162,10 @@ def handler(con):#This handles server connections input
                 global cryptothingy
                 command,client_public_key=content.split(" ")
                 cryptothingy=Crytostuff(client_public_key)
-            content=cryptothingy.rsa_decryption()
+                continue#Reloop handler once public key is gained
+            if cryptothingy.aes.aes_session_cipher()=="NULL":
+                cryptothingy.get_session_key(content)
+
             if content == 'SHUTDOWN':
                 break
             elif content.startswith("CHECKUSER"):
@@ -247,26 +251,59 @@ class Crytostuff:
         self.rsa_keypair=RSA.generate(2048)
         self.server_private_key=self.rsa_keypair.exportKey().decode()
         self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
+        self.aes_session_cipher="NULL"
+        print("AES Session cipher erased")
         soc.sendall(self.server_public_key.encode())
+        print("Public key sent to client")
         return
-    def rsa_encryption(self):
 
-        return
     def rsa_decryption(self,encrypted_message):#handles rsa decryption
+        print("RSA decryption...")
         server_private_rsa_cipher = PKCS1_OAEP.new(self.server_private_key)#Client's public key
         decrypted_message = server_private_rsa_cipher.decrypt(encrypted_message)
+        print("RSA decryption success")
         return decrypted_message
 
     def get_session_key(self,content):#handles storing session key
-        encrypted_session_key,session_iv=content.split(" ")
-        aes_session_key=self.rsa_decryption(encrypted_message)
-        self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)
+        if content.startswith("1$"):
+            print("Get Session Key...")
+            message_type,encrypted_AES_key_WITH_RSA,session_iv=content.split("$")#USED TO SPLIT SESSION KEY & IV
+            aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
+            self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)#Stores session key to class
+            print("Session Key successfully grabbed")
+        else:
+            print("Invalid session key")
         return
 
-    def aes_decrypt(self):
+    def aes_decrypt(self,content):#handles aes decryption
+        print("Aes Decrypting...")
+        plain_text=unpad(self.aes_session_cipher.decrypt(content),AES.block_size)
+        print("Aes Decryption success")
+        self.aes_session_cipher="NULL"
+        print("AES Session cipher erased")
+        return plain_text
 
-    def generate_digitalsignature(self):
-        
+    def generate_digitalsignature(self,content):#Returns digital signature for server with content
+        print("Generating Digital Signature")
+        digest = SHA256.new(message.encode())
+        signer = pkcs1_15.new(self.rsakey_pair)
+        signature = signer.sign(digest)
+        print("Digital Signature created.")
+        return signature
+    
+    def check_digitalsignature(self,content):#Returns whether digital signature is valid
+        print("Checking Client's Digital Signature")
+        message,signature=content.split("$")
+        digest=SHA256.new(message.encode())
+        verifier = pkcs1_15.new(self.client_public_key)
+        try:
+            verifier.verify(digest,signature)
+            print("The signature is valid...")
+            return True
+        except:
+            print("The signature is not valid...")
+            return False
+    
 # Start program
 # login = Login()
 # start_server()
