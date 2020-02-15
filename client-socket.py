@@ -86,8 +86,8 @@ Welcome, please enter login/register.
 
             if self.login_mode: # If true, start program
                 if self.login == "2":
-                    clientsocket.sendall(f"CHECKPREORDER {self.customer_name}".encode()) # Send CHECKPREORDER to check if a user has any preorder
-                    preorder_string = clientsocket.recv(8192).decode()
+                    clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CHECKPREORDER {self.customer_name}")) # Send CHECKPREORDER to check if a user has any preorder
+                    preorder_string = cryptothingy.decrypt_ciphertext(clientsocket.recv(8192)).decode()
                     if preorder_string != "NULL": # If user has preorder, cart will be reference from preorder dictionary
                         global cart
                         preorder = json.loads(preorder_string)
@@ -101,8 +101,8 @@ Welcome, please enter login/register.
     def register_system(self):
         self.customer_name = input("Login username: ")
         if len(self.customer_name) > 0:
-            clientsocket.sendall(f"CHECKUSER {self.customer_name}".encode()) # Send CHECKUSER to check if user is in the system
-            user_in_system = clientsocket.recv(4096).decode()
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CHECKUSER {self.customer_name}")) # Send CHECKUSER to check if user is in the system
+            user_in_system = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
         else:
             user_in_system = "FALSE"
 
@@ -114,8 +114,8 @@ Welcome, please enter login/register.
                 print(f"\n\u001b[33m\u26A0  Warning: Username '{self.customer_name}' is already taken!\u001b[0m") # ⚠ \u26A0
             self.customer_name = input("Login username: ")
             if len(self.customer_name) > 0:
-                clientsocket.sendall(f"CHECKUSER {self.customer_name}".encode()) # Send CHECKUSER to check if user is in the system
-                user_in_system = clientsocket.recv(4096).decode()
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CHECKUSER {self.customer_name}")) # Send CHECKUSER to check if user is in the system
+                user_in_system = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
             else:
                 user_in_system = "FALSE"
 
@@ -133,7 +133,7 @@ Welcome, please enter login/register.
         salted_password = pbkdf2_hmac('sha256', self.passwd.encode(), salt, 100000) # Hash the password with pbkdf2_hmac, SHA-256 algorithm
         salted_hash = (salt + salted_password).hex() # Prepend salt to salted password and get the hex
 
-        clientsocket.sendall(f"ADDUSER {self.customer_name} {salted_hash}".encode()) # Send ADDUSER for user to be added in the FileSystem
+        clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"ADDUSER {self.customer_name} {salted_hash}")) # Send ADDUSER for user to be added in the FileSystem
         
         self.login_mode = True
 
@@ -144,18 +144,18 @@ Welcome, please enter login/register.
         self.customer_name = input("Login username: ")
         self.passwd = getpass.getpass()
         if len(self.customer_name) > 0:
-            clientsocket.sendall(f"CHECKUSER {self.customer_name}".encode()) # Send CHECKUSER to check if user is in the system
-            user_in_system = clientsocket.recv(4096).decode()
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CHECKUSER {self.customer_name}")) # Send CHECKUSER to check if user is in the system
+            user_in_system = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
         else:
             user_in_system = "FALSE"
 
         if user_in_system == "TRUE":
             # Checking if password is correct
-            clientsocket.sendall(f"SENDSALT {self.customer_name}".encode()) # Send SENDSALT to recieve the salt value of user
-            salt = clientsocket.recv(4096).decode()
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"SENDSALT {self.customer_name}")) # Send SENDSALT to recieve the salt value of user
+            salt = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
             new_salted_password = pbkdf2_hmac('sha256', self.passwd.encode(), bytes.fromhex(salt), 100000)
-            clientsocket.sendall(f"VERIFYLOGIN {self.customer_name} {new_salted_password.hex()}".encode()) # Send VERIFYLOGIN to check if user credentials is correct
-            verified = clientsocket.recv(4096).decode()
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"VERIFYLOGIN {self.customer_name} {new_salted_password.hex()}")) # Send VERIFYLOGIN to check if user credentials is correct
+            verified = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
 
             if  self.customer_name == "root" and verified == "TRUE":
                 print(f"Login successful, welcome back {self.customer_name}.")
@@ -187,7 +187,7 @@ Welcome, please enter login/register.
         print(u"\u001b[36mNote: A captcha verification is required to proceed to login.\u001b[0m \n")
         captchavalidation = "FALSE"
         while captchavalidation == "FALSE": # Continue looping until captcha is correct
-            clientsocket.sendall(b"CAPTCHA") # Send CAPTCHA to receive a image captcha bytes
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext("CAPTCHA")) # Send CAPTCHA to receive a image captcha bytes
             captcha = clientsocket.recv(16384)
             with open('captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
                 captcha_image.write(captcha)
@@ -206,9 +206,9 @@ Welcome, please enter login/register.
             if sys.platform == "win32":
                 subprocess.Popen(f"taskkill /F /IM Microsoft.Photos.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Close the captcha.png image
             
-            clientsocket.sendall(f"CAPTCHAVALIDATION {raw_captcha}".encode().strip()) # Send CAPTCHAVALIDATION to verify if captcha is valid
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CAPTCHAVALIDATION {raw_captcha}".strip())) # Send CAPTCHAVALIDATION to verify if captcha is valid
             try:
-                captchavalidation = clientsocket.recv(1024).decode()
+                captchavalidation = cryptothingy.decrypt_ciphertext(clientsocket.recv(1024)).decode()
             except:
                 captchavalidation = "FALSE"
 
@@ -255,7 +255,7 @@ def sp_automated_menu():
                 edit_menu()
             elif choice_of_action == "7" and customer.admin_mode: # Stop server if both are True
                 print(f"Server stopped at {today}")
-                clientsocket.sendall(b'SHUTDOWN')     
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext("SHUTDOWN"))     
                 break
             elif choice_of_action == "":
                 pass
@@ -273,17 +273,22 @@ def sp_automated_menu():
 
     finally:
         if len(preorder) > 0:
-            clientsocket.sendall(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}".encode()) # Send PREORDER to the server for food preordered to be recorded in FileSystem
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}")) # Send PREORDER to the server for food preordered to be recorded in FileSystem
         food_ordered = ", ".join([f'{cart_item} x{quantity}' for (cart_item, quantity) in cart.items()]) 
-        clientsocket.sendall(f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}".encode()) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
+        clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}")) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
 
         
 # Option 1. Display today's menu
 def display_today_menu():
-    clientsocket.sendall(f"RETRIVEMENU {weekday}".encode()) # Send RETRIVEMENU to receive today's menu
-    process_foodmenu(clientsocket.recv(4096).decode())
-        
-    print(f"\n{f' Menu for {weekdays[weekday-1]} ':=^45}")
+    clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RETRIVEMENU {weekday}")) # Send RETRIVEMENU to receive today's menu
+    plaintext_with_signature = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
+    plaintext = plaintext_with_signature.split('$')[0]
+    signature = plaintext_with_signature.split('$')[1]
+    if cryptothingy.verify_digital_signature(plaintext, signature):
+        process_foodmenu(plaintext)
+        print(f"\n{f' Menu for {weekdays[weekday-1]} ':=^45}")
+    else:
+        print("Oops, menu is invalid! Try again.")
 
 # Option 1. Display other days' menu
 def display_otherdays_menu():
@@ -292,10 +297,16 @@ def display_otherdays_menu():
         print(f"\u001b[33m\u26A0  Warning: Input number 1-7\u001b[0m")
         day = input(f"\n{f' Which day? ':=^45}\n1. Monday\n2. Tuesday\n3. Wednesday\n4. Thursday\n5. Friday\n6. Saturday\n7. Sunday\n>> ")
     
-    clientsocket.sendall(f"RETRIVEMENU {day}".encode()) # Send RETRIVEMENU to receive selected day's menu
-    process_foodmenu(clientsocket.recv(4096).decode())
+    clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RETRIVEMENU {weekday}")) # Send RETRIVEMENU to receive selected day's menu
+    plaintext_with_signature = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
+    plaintext = plaintext_with_signature.split('$')[0]
+    signature = plaintext_with_signature.split('$')[1]
+    if cryptothingy.verify_digital_signature(plaintext, signature):
+        process_foodmenu(plaintext)
+        print(f"\n{f' Menu for {weekdays[int(day)-1]} ':=^45}")
+    else:
+        print("Oops, menu is invalid! Try again.")
 
-    print(f"\n{f' Menu for {weekdays[int(day)-1]} ':=^45}")
     return day
 
 # Option 2. Search menu
@@ -418,8 +429,15 @@ def edit_cart():
 def check_out():
     global total
 
-    clientsocket.sendall(f"RETRIVEMENU {weekday}".encode()) # Send RETRIVEMENU to recieve current day's food menu
-    process_foodmenu(clientsocket.recv(4096).decode())
+    clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RETRIVEMENU {weekday}")) # Send RETRIVEMENU to recieve current day's food menu
+    plaintext_with_signature = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
+    plaintext = plaintext_with_signature.split('$')[0]
+    signature = plaintext_with_signature.split('$')[1]
+    if cryptothingy.verify_digital_signature(plaintext, signature):
+        process_foodmenu(plaintext)
+    else:
+        print("Oops, something went wrong! Try again later.")
+        return
 
     print(f"\n{' Check out ':=^45}")
     if len(cart) > 0:
@@ -493,7 +511,7 @@ def edit_menu():
                         print(f"\n\u001b[33m\u26A0  Warning: Ignoring '{new_menu[0].strip()}' as price/discount is not a float or discount is less than 0 or more than 100\u001b[0m ")
                         break
                     food_menus[new_menu[0].strip()] = [float(price_discount[0].strip()), float(price_discount[1].strip())/100]
-                    clientsocket.sendall(f"ADDMENU|{day}|{new_menu[0].strip()}|{price_discount[0].strip()}|{price_discount[1].strip()}".encode()) # Send ADDMENU to server for new food menu to be added to the FileSystem
+                    clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"ADDMENU|{day}|{new_menu[0].strip()}|{price_discount[0].strip()}|{price_discount[1].strip()}")) # Send ADDMENU to server for new food menu to be added to the FileSystem
             
             # 2) Remove a menu item
             elif update_menu == "2":
@@ -516,7 +534,7 @@ def edit_menu():
                         if confirmation == "Y" or confirmation == "y":
                             print(f"You have removed {list(food_menus)[int(delete_row)-1]}.")
                             del(food_menus[list(food_menus)[int(delete_row)-1]])
-                            clientsocket.sendall(f"REMOVEMENU {day} {delete_row}".encode()) # Send REMOVEMENU to server for food menu to be removed from the FileSystem
+                            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"REMOVEMENU {day} {delete_row}")) # Send REMOVEMENU to server for food menu to be removed from the FileSystem
                             break
                         elif confirmation == "N" or confirmation == "n":
                             break
@@ -548,7 +566,7 @@ def edit_menu():
                         while not isfloat(new_discount) or float(new_discount) < 0 or float(new_discount) > 100:
                             new_discount = input(f"\u001b[33m\u26A0  Warning: Input the new discount (0-100)% of {list(food_menus)[int(edit_price)-1]}: \u001b[0m")
                         food_menus[list(food_menus)[int(edit_price)-1]] = [float(new_price), float(new_discount)/100]
-                        clientsocket.sendall(f"EDITMENU {day} {edit_price} {new_price} {new_discount}".encode()) # Send EDITMENU to server to edit the food menu price/discount 
+                        clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"EDITMENU {day} {edit_price} {new_price} {new_discount}")) # Send EDITMENU to server to edit the food menu price/discount 
                         if int(edit_price) == 0:
                             print(f"\u001b[33m\u26A0  Warning: You have set {list(food_menus)[int(edit_price)-1]} to be free\u001b[0m")
                         else:
@@ -607,20 +625,47 @@ class Cryptostuff:
         self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
         clientsocket.sendall(f"CLIENTPUBLICKEY {self.client_public_key}".encode())
         self.server_public_key = clientsocket.recv(4096).decode()
+    
+    def generate_aes_key(self): #This function generates the AES key
+        self.aes_key = get_random_bytes(AES.block_size)
 
-    def rsa_encrpytion(self):
+        return self.aes_key
+
+    def rsa_encrpytion(self): # Encrpyt AES key to become a session key
         self.rsa_cipher = PKCS1_OAEP.new(self.server_public_key)
-        self.enc_session_key = self.rsa_cipher.encrypt(self.aes_key)
+        self.session_key = self.rsa_cipher.encrypt(self.generate_aes_key()) # Encrpyted AES key with RSA
+        self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC)
+        self.aes_iv = self.aes_cipher.iv # retrieve the randomly generated iv value 
 
-    #def rsa_decrpytion(self):
+        return self.session_key, self.aes_iv
 
-    def create_digital_signature(self, digest):
+    def send_session_key(self):
+        server_recieved = "0$"
+        while server_recieved != "1$":
+            session_key, aes_iv = self.rsa_encrpytion()
+            clientsocket.sendall(f"1${session_key}${aes_iv}".encode())
+            server_recieved = clientsocket.recv(4096).decode()
+
+    def encrpyt_plaintext(self, plaintext):
+        self.send_session_key()
+        ciphertext = self.aes_cipher.encrypt(pad(plaintext.encode(), AES.block_size))
+
+        return ciphertext
+
+    def decrypt_ciphertext(self, ciphertext):
+        plain_text = unpad(self.aes_cipher.decrypt(ciphertext), AES.block_size)
+
+        return plain_text
+
+    def create_digital_signature(self, plaintext):
+        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
         signer = pkcs1_15.new(self.rsa_keypair)
-        signature=signer.sign(digest)
+        signature = signer.sign(digest)
         return signature
 
-    def verify_digital_signature(self, digest, signature):
-        verifier = pkcs1_15.new(self.client_public_key.encode())
+    def verify_digital_signature(self, plaintext, signature):
+        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
+        verifier = pkcs1_15.new(self.server_public_key.encode())
         try:
             verifier.verify(digest,signature)
             # print("The signature is valid")
@@ -629,19 +674,7 @@ class Cryptostuff:
             # print("The signature is not valid")
             return False
 
-    def session_key(self):
-        self.aes_key = get_random_bytes(AES.block_size)
-        self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC)
-        self.aes_iv = self.aes_cipher.iv # retrieve the randomly generated iv value
-        
-
-        # return self.enc_session_key
-
-
-
-
-cryptothingy = Cryptostuff()
-
 # Start Program
-# customer = Customers()
-# customer.user_tracking()
+cryptothingy = Cryptostuff()
+customer = Customers()
+customer.user_tracking()
