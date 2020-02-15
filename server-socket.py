@@ -145,8 +145,9 @@ def start_server():#This starts the server and waits for response from function 
     soc.listen(1) # Listen for 1 connections
     while True:
         print("waiting a new call at accept()")
-        connection, address = soc.accept() # Accept a connection
-        if handler(connection) == 'SHUTDOWN':
+        global con
+        con, address = soc.accept() # Accept a connection
+        if handler(con) == 'SHUTDOWN':
             break
     soc.close()
     print(f"Server stopped at {today}")
@@ -160,12 +161,14 @@ def handler(con):#This handles server connections input
             print(f"Request from Client: {content.split()}")
             if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
                 global cryptothingy
-                command,client_public_key=content.split(" ")
+                message_type,client_public_key=content.split(" ")
                 cryptothingy=Crytostuff(client_public_key)
                 continue#Reloop handler once public key is gained
-            if cryptothingy.aes.aes_session_cipher()=="NULL":
-                cryptothingy.get_session_key(content)
-
+            if cryptothingy.aes_session_cipher=="NULL":#This waits untill a session key is created
+                cryptothingy.get_session_key(content)#session key will not be changed hence will reloop if session key invalid
+                continue#reloop handler to wait for new message
+            else:
+                content=cryptothingy.aes_decrypt(content)
             if content == 'SHUTDOWN':
                 break
             elif content.startswith("CHECKUSER"):
@@ -253,7 +256,7 @@ class Crytostuff:
         self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
         self.aes_session_cipher="NULL"
         print("AES Session cipher erased")
-        soc.sendall(self.server_public_key.encode())
+        con.sendall(self.server_public_key.encode())
         print("Public key sent to client")
         return
 
@@ -271,8 +274,10 @@ class Crytostuff:
             aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
             self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)#Stores session key to class
             print("Session Key successfully grabbed")
+            con.sendall("1$")
         else:
             print("Invalid session key")
+            con.sendall("0$")
         return
 
     def aes_decrypt(self,content):#handles aes decryption
@@ -282,10 +287,15 @@ class Crytostuff:
         self.aes_session_cipher="NULL"
         print("AES Session cipher erased")
         return plain_text
+    
+    def aes_encrypt(self,content):#handles aes encryption
+        print("AES encrypting...")
+        ciphertext = self.aes_session_cipher.encrypt(pad(content, AES.block_size))
+        return ciphertext
 
     def generate_digitalsignature(self,content):#Returns digital signature for server with content
         print("Generating Digital Signature")
-        digest = SHA256.new(message.encode())
+        digest = SHA256.new(content.encode())
         signer = pkcs1_15.new(self.rsakey_pair)
         signature = signer.sign(digest)
         print("Digital Signature created.")
