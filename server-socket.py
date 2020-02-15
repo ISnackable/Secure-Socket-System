@@ -155,7 +155,7 @@ def start_server():#This starts the server and waits for response from function 
 def handler(con):#This handles server connections input
     print("client connected")
     while True:
-        buf = con.recv(4096) # buf is of the type of byte
+        buf = con.recv(8192) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
         if len(buf) > 0:
             print(f"Request from Client: {content.split()}")
@@ -345,4 +345,4 @@ class Cryptostuff:
     
 # Start program
 login = Login()
-# start_server()
+start_server()
