@@ -643,7 +643,9 @@ class Cryptostuff:
         server_recieved = "0$"
         while server_recieved != "1$":
             session_key, aes_iv = self.rsa_encrpytion()
-            clientsocket.sendall(b'$1'+session_key+aes_iv)
+            session_key = session_key.hex()
+            aes_iv = aes_iv.hex()
+            clientsocket.sendall(f"1${session_key}${aes_iv}".encode())
             server_recieved = clientsocket.recv(4096).decode()
 
     def encrpyt_plaintext(self, plaintext):

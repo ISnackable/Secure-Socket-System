@@ -291,10 +291,10 @@ class Cryptostuff:
 
     def rsa_decryption(self,encrypted_message):#handles rsa decryption
         print("RSA decryption...")
-        server_private_rsa_cipher = PKCS1_OAEP.new(self.server_private_key)#Client's public key
+        server_private_rsa_cipher = PKCS1_OAEP.new(RSA.import_key(self.server_private_key.encode()))#Client's public key
         decrypted_message = server_private_rsa_cipher.decrypt(encrypted_message)
         print("RSA decryption success")
-        return decrypted_message.decode()
+        return decrypted_message
 
     def get_session_key(self,content):#handles storing session key
         try:#incase something goes wrong in split
@@ -302,6 +302,8 @@ class Cryptostuff:
                 print("Get Session Key...")
                 encrypted_AES_key_WITH_RSA=content.split("$")[1]#Encrypted AES Key
                 session_iv=content.split("$")[2]
+                encrypted_AES_key_WITH_RSA = bytes.fromhex(encrypted_AES_key_WITH_RSA)
+                session_iv = bytes.fromhex(session_iv)
                 aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
                 self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)#Stores session key to class
                 print("Session Key successfully grabbed")
