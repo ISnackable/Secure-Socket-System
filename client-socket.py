@@ -632,7 +632,7 @@ class Cryptostuff:
         return self.aes_key
 
     def rsa_encrpytion(self): # Encrpyt AES key to become a session key
-        self.rsa_cipher = PKCS1_OAEP.new(self.server_public_key)
+        self.rsa_cipher = PKCS1_OAEP.new(RSA.import_key(self.server_public_key.encode()))
         self.session_key = self.rsa_cipher.encrypt(self.generate_aes_key()) # Encrpyted AES key with RSA
         self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC)
         self.aes_iv = self.aes_cipher.iv # retrieve the randomly generated iv value 
@@ -643,7 +643,7 @@ class Cryptostuff:
         server_recieved = "0$"
         while server_recieved != "1$":
             session_key, aes_iv = self.rsa_encrpytion()
-            clientsocket.sendall(f"1${session_key}${aes_iv}".encode())
+            clientsocket.sendall(b'$1'+session_key+aes_iv)
             server_recieved = clientsocket.recv(4096).decode()
 
     def encrpyt_plaintext(self, plaintext):
