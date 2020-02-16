@@ -343,7 +343,6 @@ class Cryptostuff:
         signature = content.split("$")[1]
         signature = base64.b64decode(signature)
         digest=SHA256.new(message.encode())
-        print(self.client_public_key)
         verifier = pkcs1_15.new(RSA.import_key(self.client_public_key.encode()))
         try:
             verifier.verify(digest,signature)

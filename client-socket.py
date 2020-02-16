@@ -224,7 +224,7 @@ Welcome, please enter login/register.
 # SPAM Function
 def sp_automated_menu():
     global choice_of_action, cart #Globalize to be used in a function
-    server_shutdown = True
+    server_shutdown = False
     
     try:
         while len(choice_of_action) != 0:
@@ -290,7 +290,6 @@ def sp_automated_menu():
 def display_today_menu():
     clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RETRIVEMENU {weekday}")) # Send RETRIVEMENU to receive today's menu
     plaintext_with_signature = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
-    print(plaintext_with_signature)
     plaintext = plaintext_with_signature.split('$')[0]
     signature = plaintext_with_signature.split('$')[1]
     if cryptothingy.verify_digital_signature(plaintext, signature):
