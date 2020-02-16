@@ -14,6 +14,7 @@ from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import pkcs1_15
 from Cryptodome.Hash import SHA256
+import base64
 
 # Get today's day
 today = datetime.today()
@@ -157,13 +158,11 @@ def handler(con):#This handles server connections input
     while True:
         buf = con.recv(8192) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
-        print(content)
         if len(buf) > 0:
-            print(f"Request from Client: {content.split()}")
             ##Step 1 (GETS CLIENT PUBLIC KEY AND RETURN SERVER PUBLIC KEY)
             if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
                 global cryptothingy
-                client_public_key=content.split(" ")[1].strip()
+                client_public_key=content.split("$")[1].strip()
                 cryptothingy=Cryptostuff(client_public_key)
                 continue#Reloop handler once public key is gained
             ##Step 2 (Gets session key from Client [will reloop if invalid])
@@ -172,11 +171,14 @@ def handler(con):#This handles server connections input
                 continue#reloop handler to wait for new message
             else:
             ##Step 3 (Decrypts message so that it is readable)
+                content = base64.b64decode(buf)
                 content=cryptothingy.aes_decrypt(content)#decrypts request
                 print("Session key used")
+                content = content.decode()
+                print(f"Request from Client: {content}")
             ##Step 4 (Check client's request)
             if content == 'SHUTDOWN':
-                break
+                return content
             elif content.startswith("CHECKUSER"):
                 if login.user_in_system(content.split()[1].strip()):
                     encrypted_message_to_send=cryptothingy.aes_encrypt('TRUE')
@@ -225,8 +227,8 @@ def handler(con):#This handles server connections input
             elif content.startswith("RETRIVEMENU") and content[-1].isnumeric():
                 message_to_send=FileSystem().process_foodmenu(content[-1].strip())
                 message_signature=cryptothingy.generate_digitalsignature(message_to_send)
-                send_to_client=message_to_send+"$"+message_signature
-                encrypted_message_to_send=cryptothingy.aes_encrypt(send_to_client)
+                send_to_client=message_to_send.encode()+b"$"+base64.b64encode(message_signature)
+                encrypted_message_to_send=cryptothingy.aes_encrypt(send_to_client.decode())
                 con.sendall(encrypted_message_to_send)
 
             elif content.startswith("ADDMENU"):
@@ -254,10 +256,9 @@ def handler(con):#This handles server connections input
                 FileSystem().preorder(user, preorder)
 
             elif content.startswith("RECORDTRANSACTION"):
-                message=content.split(" ")[1].strip()
-                valid_bool=cryptothingy.check_digitalsignature(message)
+                valid_bool=cryptothingy.check_digitalsignature(content)
                 if valid_bool:
-                    content=message.split("$")[0].strip()
+                    content=content.split("$")[0].strip()
                     user = content.split('|')[1].strip()
                     food_ordered = content.split('|')[2].strip()
                     FileSystem().record_transaction(user, food_ordered)
@@ -303,9 +304,9 @@ class Cryptostuff:
                 encrypted_AES_key_WITH_RSA=content.split("$")[1]#Encrypted AES Key
                 session_iv=content.split("$")[2]
                 encrypted_AES_key_WITH_RSA = bytes.fromhex(encrypted_AES_key_WITH_RSA)
-                session_iv = bytes.fromhex(session_iv)
-                aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
-                self.aes_session_cipher = AES.new(aes_session_key,AES.MODE_CBC,iv=session_iv)#Stores session key to class
+                self.session_iv = bytes.fromhex(session_iv)
+                self.aes_session_key=self.rsa_decryption(encrypted_AES_key_WITH_RSA)
+                self.aes_session_cipher = AES.new(self.aes_session_key,AES.MODE_CBC,iv=self.session_iv)#Stores session key to class
                 print("Session Key successfully grabbed")
                 con.sendall("1$".encode())
             else:
@@ -322,8 +323,9 @@ class Cryptostuff:
         return plain_text
     
     def aes_encrypt(self,content):#handles aes encryption
+        self.aes_session_cipher = AES.new(self.aes_session_key,AES.MODE_CBC,iv=self.session_iv)#Stores session key to class
         print("AES encrypting...")
-        ciphertext = self.aes_session_cipher.encrypt(pad(content, AES.block_size))
+        ciphertext = self.aes_session_cipher.encrypt(pad(content.encode(), AES.block_size))
         print("AES succesfully encrypted")
         return ciphertext
 
@@ -337,9 +339,12 @@ class Cryptostuff:
     
     def check_digitalsignature(self,content):#Returns whether digital signature is valid
         print("Checking Client's Digital Signature")
-        message,signature=content.split("$")
+        message = content.split("$")[0]
+        signature = content.split("$")[1]
+        signature = base64.b64decode(signature)
         digest=SHA256.new(message.encode())
-        verifier = pkcs1_15.new(self.client_public_key)
+        print(self.client_public_key)
+        verifier = pkcs1_15.new(RSA.import_key(self.client_public_key.encode()))
         try:
             verifier.verify(digest,signature)
             print("The signature is valid...")

@@ -1,9 +1,11 @@
 #Client socket in python
 # Python 3.7 not using ANSI compatible console (The 2 lines of code below fixes this issue)
+# importing stuff
 import subprocess
 subprocess.call('', shell=True)
-
-# importing stuff
+import base64
+from Cryptodome.Hash import SHA256
+import time
 import os
 import json
 from hashlib import pbkdf2_hmac, sha256
@@ -222,6 +224,7 @@ Welcome, please enter login/register.
 # SPAM Function
 def sp_automated_menu():
     global choice_of_action, cart #Globalize to be used in a function
+    server_shutdown = True
     
     try:
         while len(choice_of_action) != 0:
@@ -255,7 +258,9 @@ def sp_automated_menu():
                 edit_menu()
             elif choice_of_action == "7" and customer.admin_mode: # Stop server if both are True
                 print(f"Server stopped at {today}")
-                clientsocket.sendall(cryptothingy.encrpyt_plaintext("SHUTDOWN"))     
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext("SHUTDOWN"))
+                clientsocket.close()
+                server_shutdown = True
                 break
             elif choice_of_action == "":
                 pass
@@ -272,16 +277,20 @@ def sp_automated_menu():
         return "ERROR"
 
     finally:
-        if len(preorder) > 0:
-            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}")) # Send PREORDER to the server for food preordered to be recorded in FileSystem
-        food_ordered = ", ".join([f'{cart_item} x{quantity}' for (cart_item, quantity) in cart.items()]) 
-        clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}")) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
+        if not server_shutdown:
+            if len(preorder) > 0:
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}")) # Send PREORDER to the server for food preordered to be recorded in FileSystem
+            food_ordered = ", ".join([f'{cart_item} x{quantity}' for (cart_item, quantity) in cart.items()]) 
+            food_ordered = f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}"
+            message_to_send = food_ordered.encode()+b"$"+base64.b64encode(cryptothingy.create_digital_signature(food_ordered))
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(message_to_send.decode())) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
 
         
 # Option 1. Display today's menu
 def display_today_menu():
     clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RETRIVEMENU {weekday}")) # Send RETRIVEMENU to receive today's menu
     plaintext_with_signature = cryptothingy.decrypt_ciphertext(clientsocket.recv(4096)).decode()
+    print(plaintext_with_signature)
     plaintext = plaintext_with_signature.split('$')[0]
     signature = plaintext_with_signature.split('$')[1]
     if cryptothingy.verify_digital_signature(plaintext, signature):
@@ -623,7 +632,7 @@ class Cryptostuff:
         self.rsa_keypair = RSA.generate(2048)
         self.client_private_key = self.rsa_keypair.exportKey().decode()
         self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
-        clientsocket.sendall(f"CLIENTPUBLICKEY {self.client_public_key}".encode())
+        clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
         self.server_public_key = clientsocket.recv(4096).decode()
     
     def generate_aes_key(self): #This function generates the AES key
@@ -652,22 +661,24 @@ class Cryptostuff:
         self.send_session_key()
         ciphertext = self.aes_cipher.encrypt(pad(plaintext.encode(), AES.block_size))
 
-        return ciphertext
+        return base64.b64encode(ciphertext)
 
     def decrypt_ciphertext(self, ciphertext):
+        self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC,iv=self.aes_iv)
         plain_text = unpad(self.aes_cipher.decrypt(ciphertext), AES.block_size)
 
         return plain_text
 
     def create_digital_signature(self, plaintext):
-        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
+        digest = SHA256.new(plaintext.encode()) # plaintext is in bytes
         signer = pkcs1_15.new(self.rsa_keypair)
         signature = signer.sign(digest)
         return signature
 
     def verify_digital_signature(self, plaintext, signature):
-        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
-        verifier = pkcs1_15.new(self.server_public_key.encode())
+        signature = base64.b64decode(signature)
+        digest = SHA256.new(plaintext.encode()) # plaintext is in bytes
+        verifier = pkcs1_15.new(RSA.import_key(self.server_public_key.encode()))
         try:
             verifier.verify(digest,signature)
             # print("The signature is valid")
