@@ -9,6 +9,7 @@ from hashlib import pbkdf2_hmac
 import getpass
 from datetime import datetime
 import socket
+#ACG imports
 from Cryptodome.Random import get_random_bytes
 from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES  
 from Cryptodome.Util.Padding import pad, unpad
@@ -190,7 +191,7 @@ Welcome, please enter login/register.
         while captchavalidation == "FALSE": # Continue looping until captcha is correct
             clientsocket.sendall(cryptothingy.encrpyt_plaintext("CAPTCHA")) # Send CAPTCHA to receive a image captcha bytes
             captcha = clientsocket.recv(16384)
-            with open('client\captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
+            with open(r'client\captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
                 captcha_image.write(captcha)
                 captcha_image.close()
             
