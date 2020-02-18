@@ -3,12 +3,9 @@
 # importing stuff
 import subprocess
 subprocess.call('', shell=True)
-import base64
-from Cryptodome.Hash import SHA256
-import time
 import os
 import json
-from hashlib import pbkdf2_hmac, sha256
+from hashlib import pbkdf2_hmac
 import getpass
 from datetime import datetime
 import socket
@@ -17,6 +14,8 @@ from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import pkcs1_15 
+from Cryptodome.Hash import SHA256
+import base64
 
 # Function to get socket
 def getnewsocket():

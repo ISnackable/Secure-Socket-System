@@ -6,15 +6,15 @@ import json
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from captcha.image import ImageCaptcha
+from hashlib import pbkdf2_hmac
 #ACG imports
-from hashlib import pbkdf2_hmac, sha256
+import base64
 from Cryptodome.Random import get_random_bytes
 from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import pkcs1_15
 from Cryptodome.Hash import SHA256
-import base64
 
 # Get today's day
 today = datetime.today()
