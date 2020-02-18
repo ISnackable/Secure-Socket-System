@@ -281,7 +281,7 @@ class Cryptostuff:
         self.client_public_key=client_public_key
         self.server_public_key=self.server_private_key=""
         print("Checking RSA files...")
-        for fname in os.listdir('.'):
+        for fname in os.listdir('./server'):
             if fname=='private.pem':
                 with open("./server/private.pem","r") as f:
                     self.server_private_key=f.read()
