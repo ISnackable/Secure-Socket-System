@@ -190,7 +190,7 @@ Welcome, please enter login/register.
         while captchavalidation == "FALSE": # Continue looping until captcha is correct
             clientsocket.sendall(cryptothingy.encrpyt_plaintext("CAPTCHA")) # Send CAPTCHA to receive a image captcha bytes
             captcha = clientsocket.recv(16384)
-            with open('client/captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
+            with open('client\captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
                 captcha_image.write(captcha)
                 captcha_image.close()
             
@@ -198,7 +198,7 @@ Welcome, please enter login/register.
             imageViewerFromCommandLine = {'linux':'xdg-open',
                                   'win32':'explorer',
                                   'darwin':'open'}[sys.platform]
-            captcha_image = subprocess.Popen([imageViewerFromCommandLine, r"client/captcha.png"], shell=False) # Open the captcha.png image
+            captcha_image = subprocess.Popen([imageViewerFromCommandLine, r"client\captcha.png"], shell=False) # Open the captcha.png image
             
             raw_captcha = input("Enter the characters in captcha.png: ")
             if len(raw_captcha) <= 0:
