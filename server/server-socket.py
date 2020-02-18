@@ -158,6 +158,7 @@ def handler(con):#This handles server connections input
     while True:
         buf = con.recv(8192) # buf is of the type of byte
         content = buf.decode() # decode buf into a string
+        print(f"----Encrypted text recieved----\n{content}\n----End of Encrypted Text recieved----")
         if len(buf) > 0:
             ##Step 1 (GETS CLIENT PUBLIC KEY AND RETURN SERVER PUBLIC KEY)
             if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
