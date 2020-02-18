@@ -629,27 +629,47 @@ def select_menu_day(choice_of_action):
 
 class Cryptostuff:
     def __init__(self): #This function generates the RSA key for server/client side.
-        for fname in os.listdir('./client'):
-            if fname.endswith('.pem'):
-                self.client_public_key=open("client/public.pem","r").read()
-                self.client_private_key=open("client/private.pem","r").read()
-                break
+        passphrase = ""
+        for attempt in range(5):
+            try:
+                passphrase = getpass.getpass("Input passphrase for RSA keypair: ")
+                for fname in os.listdir('./client'):
+                    if fname.endswith('.pem'):
+                        # Reading an existing RSA keypair file
+                        encoded_client_public_key=open("client/public.pem","r").read()
+                        self.client_public_key =  RSA.import_key(encoded_client_public_key, passphrase=passphrase)
+                        encoded_client_private_key=open("client/private.pem","r").read()
+                        self.client_private_key =  RSA.import_key(encoded_client_private_key, passphrase=passphrase)
+                        break
+                else:
+                    # Generate a 1024-bit or 2024-bit long RSA Key pair.
+                    self.rsa_keypair=RSA.generate(2048)
+                    # store the private key to private.pem
+                    # store the public key to public.pem
+                    with open("client/private.pem","w") as f:
+                        print(self.rsa_keypair.exportKey(passphrase=passphrase).decode() ,file=f)
+                    f.close()
+                    self.client_private_key = self.rsa_keypair.exportKey(passphrase=passphrase).decode()
+                    with open("client/public.pem","w") as f:
+                        print(self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode() ,file=f)
+                    f.close()
+                    self.client_public_key = self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode()
+
+                clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
+                self.server_public_key = clientsocket.recv(4096).decode()
+                customer = Customers()
+                customer.user_tracking()
+                
+            except ValueError:
+                print("\nIncorrect passphrase, please try again.\n")
+            except KeyboardInterrupt:
+                exit()
+            except:
+                print("Oops, something went wrong!")
         else:
-            # Generate a 1024-bit or 2024-bit long RSA Key pair.
-            self.rsa_keypair=RSA.generate(2048)
-            # store the private key to private.pem
-            # store the public key to public.pem
-            with open("client/private.pem","w") as f:
-                print(self.rsa_keypair.exportKey().decode() ,file=f)
-            f.close()
-            self.client_private_key = self.rsa_keypair.exportKey().decode()
-            with open("client/public.pem","w") as f:
-                print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
-            f.close()
-            self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
-        clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
-        self.server_public_key = clientsocket.recv(4096).decode()
-    
+            print("You have been kicked for writing the wrong passphrase 10 times!")
+            exit()
+
     def generate_aes_key(self): #This function generates the AES key
         self.aes_key = get_random_bytes(AES.block_size)
 
@@ -704,5 +724,3 @@ class Cryptostuff:
 
 # Start Program
 cryptothingy = Cryptostuff()
-customer = Customers()
-customer.user_tracking()
