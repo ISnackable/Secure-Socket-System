@@ -650,11 +650,11 @@ class Cryptostuff:
                     with open("client/private.pem","w") as f:
                         print(self.rsa_keypair.exportKey(passphrase=passphrase).decode() ,file=f)
                     f.close()
-                    self.client_private_key = self.rsa_keypair.exportKey(passphrase=passphrase).decode()
+                    self.client_private_key = self.rsa_keypair.exportKey().decode()
                     with open("client/public.pem","w") as f:
                         print(self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode() ,file=f)
                     f.close()
-                    self.client_public_key = self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode()
+                    self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
 
                 clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
                 self.server_public_key = clientsocket.recv(4096).decode()
