@@ -162,9 +162,8 @@ def handler(con):#This handles server connections input
         if len(buf) > 0:
             ##Step 1 (GETS CLIENT PUBLIC KEY AND RETURN SERVER PUBLIC KEY)
             if content.startswith("CLIENTPUBLICKEY"):#Client request new RSA key
-                global cryptothingy
                 client_public_key=content.split("$")[1].strip()
-                cryptothingy=Cryptostuff(client_public_key)
+                cryptothingy.send_public_key(client_public_key)
                 continue#Reloop handler once public key is gained
             ##Step 2 (Gets session key from Client [will reloop if invalid])
             if cryptothingy.aes_session_cipher=="NULL":#This waits untill a session key is created
@@ -278,42 +277,48 @@ def handler(con):#This handles server connections input
 
 #Additional Codes for ACG
 class Cryptostuff:
-    def __init__(self,client_public_key):#This function generates the RSA key.
-        self.client_public_key=client_public_key
-        self.server_public_key=self.server_private_key=""
-        print("Checking RSA files...")
-        for fname in os.listdir('./server'):
-            if fname=='private.pem':
-                with open("./server/private.pem","r") as f:
-                    self.server_private_key=f.read()
-                f.close()
-            if fname=='public.pem':
-                with open("./server/public.pem","r") as f:
-                    self.server_public_key=f.read()
-                f.close()
-        if self.server_private_key=="" or self.server_public_key=="":
-            print("Generating RSA Key on server side...")
-            self.rsa_keypair=RSA.generate(2048)
-            self.server_private_key=self.rsa_keypair.exportKey().decode()
-            self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
-            with open("./server/private.pem","w") as f:
-                print(self.rsa_keypair.exportKey().decode() ,file=f)
-            f.close()
-            print("Private Key stored on to  'private.pem'")
-            with open("./server/public.pem","w") as f:
-                print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
-            f.close()
-            print("Public Key stored on to  'public.pem'")
-        else:
-            print("RSA Key was found.")
+    def __init__(self):#This function generates the RSA key.
+        while True:
+            try:
+                self.server_public_key=self.server_private_key=""
+                print("Checking RSA files...")
+                for fname in os.listdir('./server'):
+                    if fname.endswith('.pem'):
+                        encoded_server_public_key=open("server/public.pem","r").read()
+                        encoded_server_private_key=open("server/private.pem","r").read()
+                        passphrase=input("Please enter passphrase for RSA: ")
+                        self.server_public_key =  RSA.import_key(encoded_server_public_key, passphrase=passphrase)
+                        self.server_private_key =  RSA.import_key(encoded_server_private_key, passphrase=passphrase)
+                        print("RSA Key was found.")
+                        break
+                else:
+                    print("No RSA file detected. Creating new RSA.")
+                    passphrase=input("Please enter a new passphrase: ")
+                    print("Generating RSA Key on server side...")
+                    self.rsa_keypair=RSA.generate(2048)
+                    self.server_private_key=self.rsa_keypair.exportKey(passphrase=passphrase).decode()
+                    self.server_public_key=self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode()
+                    with open("./server/private.pem","w") as f:
+                        print(self.rsa_keypair.exportKey(passphrase=passphrase).decode() ,file=f)
+                    f.close()
+                    print("Private Key stored on to  'private.pem'")
+                    with open("./server/public.pem","w") as f:
+                        print(self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode() ,file=f)
+                    f.close()
+                    print("Public Key stored on to  'public.pem'")
+                self.aes_session_cipher="NULL"
+                print("AES Session cipher erased")
+                break
+            except:
+                print("Something went wrong. Please try again.")
+        return
 
-        self.aes_session_cipher="NULL"
-        print("AES Session cipher erased")
+    def send_public_key(self,client_public_key):
+        self.client_public_key=client_public_key
         con.sendall(self.server_public_key.encode())
         print("Public key sent to client")
         print("Key exchange success on server side.")
         return
-
     def rsa_decryption(self,encrypted_message):#handles rsa decryption
         print("RSA decryption...")
         server_private_rsa_cipher = PKCS1_OAEP.new(RSA.import_key(self.server_private_key.encode()))#Client's public key
@@ -377,5 +382,6 @@ class Cryptostuff:
             return False
     
 # Start program
+cryptothingy=Cryptostuff()
 login = Login()
 start_server()
