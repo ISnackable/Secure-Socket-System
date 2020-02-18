@@ -277,7 +277,7 @@ def handler(con):#This handles server connections input
 
 #Additional Codes for ACG
 class Cryptostuff:
-    def __init__(self):#This function generates the RSA key.
+    def __init__(self):#This function generates/initializes the RSA key.
         while True:
             try:
                 self.server_public_key=self.server_private_key=""
@@ -287,8 +287,8 @@ class Cryptostuff:
                         encoded_server_public_key=open("server/public.pem","r").read()
                         encoded_server_private_key=open("server/private.pem","r").read()
                         passphrase=input("Please enter passphrase for RSA: ")
-                        self.server_public_key =  RSA.import_key(encoded_server_public_key, passphrase=passphrase)
-                        self.server_private_key =  RSA.import_key(encoded_server_private_key, passphrase=passphrase)
+                        self.server_public_key =  RSA.import_key(encoded_server_public_key, passphrase=passphrase).decode()
+                        self.server_private_key =  RSA.import_key(encoded_server_private_key, passphrase=passphrase).decode()
                         print("RSA Key was found.")
                         break
                 else:
@@ -296,6 +296,7 @@ class Cryptostuff:
                     passphrase=input("Please enter a new passphrase: ")
                     print("Generating RSA Key on server side...")
                     self.rsa_keypair=RSA.generate(2048)
+                    
                     self.server_private_key=self.rsa_keypair.exportKey(passphrase=passphrase).decode()
                     self.server_public_key=self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode()
                     with open("./server/private.pem","w") as f:
