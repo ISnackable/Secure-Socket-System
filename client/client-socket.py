@@ -629,7 +629,6 @@ def select_menu_day(choice_of_action):
 
 class Cryptostuff:
     def __init__(self): #This function generates the RSA key for server/client side.
-        passphrase = ""
         for attempt in range(5):
             try:
                 passphrase = getpass.getpass("Input passphrase for RSA keypair: ")
