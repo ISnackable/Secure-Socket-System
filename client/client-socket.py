@@ -685,7 +685,7 @@ class Cryptostuff:
 
     def create_digital_signature(self, plaintext):
         digest = SHA256.new(plaintext.encode()) # plaintext is in bytes
-        signer = pkcs1_15.new(self.rsa_keypair)
+        signer = pkcs1_15.new(RSA.import_key(self.client_private_key.encode()))
         signature = signer.sign(digest)
         return signature
 

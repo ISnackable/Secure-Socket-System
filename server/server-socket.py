@@ -355,7 +355,7 @@ class Cryptostuff:
     def generate_digitalsignature(self,content):#Returns digital signature for server with content
         print("Generating Digital Signature")
         digest = SHA256.new(content.encode())
-        signer = pkcs1_15.new(self.rsa_keypair)
+        signer = pkcs1_15.new(RSA.import_key(self.server_private_key.encode()))
         signature = signer.sign(digest)
         print("Digital Signature created.")
         return signature
