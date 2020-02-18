@@ -279,10 +279,29 @@ def handler(con):#This handles server connections input
 class Cryptostuff:
     def __init__(self,client_public_key):#This function generates the RSA key.
         self.client_public_key=client_public_key
-        print("Generating RSA Key on server side...")
-        self.rsa_keypair=RSA.generate(2048)
-        self.server_private_key=self.rsa_keypair.exportKey().decode()
-        self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
+        print("Checking RSA files")
+        with open("private.pem","r") as f:
+            self.server_private_key=f.read()
+        f.close()
+        with open("public.pem","r") as f:
+            self.server_public_key=f.read()
+        f.close()
+        if self.server_private_key=="" or self.server_public_key=="":
+            print("Generating RSA Key on server side...")
+            self.rsa_keypair=RSA.generate(2048)
+            self.server_private_key=self.rsa_keypair.exportKey().decode()
+            self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
+            with open("private.pem","w") as f:
+                print(self.rsa_keypair.exportKey().decode() ,file=f)
+            f.close()
+            print("Private Key stored on to  'private.pem'")
+            with open("public.pem","w") as f:
+                print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
+            f.close()
+            print("Public Key stored on to  'public.pem'")
+        else:
+            print("RSA Key was found.")
+
         self.aes_session_cipher="NULL"
         print("AES Session cipher erased")
         con.sendall(self.server_public_key.encode())
@@ -315,7 +334,7 @@ class Cryptostuff:
         except:
             con.sendall("0$".encode())
         return
-
+    
     def aes_decrypt(self,content):#handles aes decryption
         print("Aes Decrypting...")
         plain_text=unpad(self.aes_session_cipher.decrypt(content),AES.block_size)
