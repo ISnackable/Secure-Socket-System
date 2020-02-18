@@ -641,7 +641,7 @@ class Cryptostuff:
                         self.client_private_key =  RSA.import_key(encoded_client_private_key, passphrase=passphrase)
                         break
                 else:
-                    # Generate a 1024-bit or 2024-bit long RSA Key pair.
+                    # Generate a 2048-bit long RSA Key pair.
                     self.rsa_keypair=RSA.generate(2048)
                     # store the private key to private.pem
                     # store the public key to public.pem
@@ -656,8 +656,7 @@ class Cryptostuff:
 
                 clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
                 self.server_public_key = clientsocket.recv(4096).decode()
-                customer = Customers()
-                customer.user_tracking()
+                break
                 
             except ValueError:
                 print("\nIncorrect passphrase, please try again.\n")
@@ -666,7 +665,7 @@ class Cryptostuff:
             except:
                 print("Oops, something went wrong!")
         else:
-            print("You have been kicked for writing the wrong passphrase 10 times!")
+            print("You have been kicked for writing the wrong passphrase 5 times!")
             exit()
 
     def generate_aes_key(self): #This function generates the AES key
@@ -723,3 +722,5 @@ class Cryptostuff:
 
 # Start Program
 cryptothingy = Cryptostuff()
+customer = Customers()
+customer.user_tracking()
