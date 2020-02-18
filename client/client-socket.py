@@ -637,8 +637,10 @@ class Cryptostuff:
                         # Reading an existing RSA keypair file
                         encoded_client_public_key=open("client/public.pem","r").read()
                         self.client_public_key =  RSA.import_key(encoded_client_public_key, passphrase=passphrase)
+                        self.client_public_key = self.client_public_key.exportKey().decode()
                         encoded_client_private_key=open("client/private.pem","r").read()
                         self.client_private_key =  RSA.import_key(encoded_client_private_key, passphrase=passphrase)
+                        self.client_private_key = self.client_private_key.exportKey().decode()
                         break
                 else:
                     # Generate a 2048-bit long RSA Key pair.
