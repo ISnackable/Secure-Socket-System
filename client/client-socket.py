@@ -1,12 +1,11 @@
 #Client socket in python
 # Python 3.7 not using ANSI compatible console (The 2 lines of code below fixes this issue)
+# importing stuff
 import subprocess
 subprocess.call('', shell=True)
-
-# importing stuff
 import os
 import json
-from hashlib import pbkdf2_hmac, sha256
+from hashlib import pbkdf2_hmac
 import getpass
 from datetime import datetime
 import socket
@@ -15,6 +14,8 @@ from Cryptodome.Cipher import PKCS1_OAEP, PKCS1_v1_5, AES
 from Cryptodome.Util.Padding import pad, unpad
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Signature import pkcs1_15 
+from Cryptodome.Hash import SHA256
+import base64
 
 # Function to get socket
 def getnewsocket():
@@ -203,11 +204,8 @@ Welcome, please enter login/register.
             if len(raw_captcha) <= 0:
                 raw_captcha = "INVALIDCAPTCHA" 
             
-            try:
-                if sys.platform == "win32":
-                    subprocess.Popen(f"taskkill /F /IM Microsoft.Photos.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Close the captcha.png image
-            except:
-                pass
+            if sys.platform == "win32":
+                subprocess.Popen(f"taskkill /F /IM Microsoft.Photos.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Close the captcha.png image
             
             clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CAPTCHAVALIDATION {raw_captcha}".strip())) # Send CAPTCHAVALIDATION to verify if captcha is valid
             try:
@@ -225,6 +223,7 @@ Welcome, please enter login/register.
 # SPAM Function
 def sp_automated_menu():
     global choice_of_action, cart #Globalize to be used in a function
+    server_shutdown = False
     
     try:
         while len(choice_of_action) != 0:
@@ -258,7 +257,9 @@ def sp_automated_menu():
                 edit_menu()
             elif choice_of_action == "7" and customer.admin_mode: # Stop server if both are True
                 print(f"Server stopped at {today}")
-                clientsocket.sendall(cryptothingy.encrpyt_plaintext("SHUTDOWN"))     
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext("SHUTDOWN"))
+                clientsocket.close()
+                server_shutdown = True
                 break
             elif choice_of_action == "":
                 pass
@@ -275,10 +276,13 @@ def sp_automated_menu():
         return "ERROR"
 
     finally:
-        if len(preorder) > 0:
-            clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}")) # Send PREORDER to the server for food preordered to be recorded in FileSystem
-        food_ordered = ", ".join([f'{cart_item} x{quantity}' for (cart_item, quantity) in cart.items()]) 
-        clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}")) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
+        if not server_shutdown:
+            if len(preorder) > 0:
+                clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"PREORDER|{customer.customer_name}|{json.dumps(preorder)}")) # Send PREORDER to the server for food preordered to be recorded in FileSystem
+            food_ordered = ", ".join([f'{cart_item} x{quantity}' for (cart_item, quantity) in cart.items()]) 
+            food_ordered = f"RECORDTRANSACTION|{customer.customer_name}|{food_ordered}"
+            message_to_send = food_ordered.encode()+b"$"+base64.b64encode(cryptothingy.create_digital_signature(food_ordered))
+            clientsocket.sendall(cryptothingy.encrpyt_plaintext(message_to_send.decode())) # Send RECORDTRANSACTION to the server for food ordered to be recorded in FileSystem
 
         
 # Option 1. Display today's menu
@@ -394,9 +398,11 @@ def edit_cart():
     # If length of cart is more than 0
     if len(cart) > 0:
         while edit_action != "":
+            if len(cart)==0:
+                print("Nothing left in cart. Exiting edit cart.")
+                return
             for counter, cart_item in enumerate(cart, 1):
                 print(f"{counter}. {cart_item:<25}:{'x':>10}{cart[cart_item]} qty")
-
             edit_action = input("\n1. Change quantity\n2. Remove item\nPlease input your choice of action (ENTER to exit): ")
 
             # 1. Change quantity
@@ -649,7 +655,7 @@ class Cryptostuff:
         return self.aes_key
 
     def rsa_encrpytion(self): # Encrpyt AES key to become a session key
-        self.rsa_cipher = PKCS1_OAEP.new(self.server_public_key)
+        self.rsa_cipher = PKCS1_OAEP.new(RSA.import_key(self.server_public_key.encode()))
         self.session_key = self.rsa_cipher.encrypt(self.generate_aes_key()) # Encrpyted AES key with RSA
         self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC)
         self.aes_iv = self.aes_cipher.iv # retrieve the randomly generated iv value 
@@ -660,6 +666,8 @@ class Cryptostuff:
         server_recieved = "0$"
         while server_recieved != "1$":
             session_key, aes_iv = self.rsa_encrpytion()
+            session_key = session_key.hex()
+            aes_iv = aes_iv.hex()
             clientsocket.sendall(f"1${session_key}${aes_iv}".encode())
             server_recieved = clientsocket.recv(4096).decode()
 
@@ -667,22 +675,24 @@ class Cryptostuff:
         self.send_session_key()
         ciphertext = self.aes_cipher.encrypt(pad(plaintext.encode(), AES.block_size))
 
-        return ciphertext
+        return base64.b64encode(ciphertext)
 
     def decrypt_ciphertext(self, ciphertext):
+        self.aes_cipher = AES.new(self.aes_key,AES.MODE_CBC,iv=self.aes_iv)
         plain_text = unpad(self.aes_cipher.decrypt(ciphertext), AES.block_size)
 
         return plain_text
 
     def create_digital_signature(self, plaintext):
-        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
+        digest = SHA256.new(plaintext.encode()) # plaintext is in bytes
         signer = pkcs1_15.new(self.rsa_keypair)
         signature = signer.sign(digest)
         return signature
 
     def verify_digital_signature(self, plaintext, signature):
-        digest = sha256(plaintext).hexdigest() # plaintext is in bytes
-        verifier = pkcs1_15.new(self.server_public_key.encode())
+        signature = base64.b64decode(signature)
+        digest = SHA256.new(plaintext.encode()) # plaintext is in bytes
+        verifier = pkcs1_15.new(RSA.import_key(self.server_public_key.encode()))
         try:
             verifier.verify(digest,signature)
             # print("The signature is valid")
