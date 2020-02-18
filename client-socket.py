@@ -399,9 +399,11 @@ def edit_cart():
     # If length of cart is more than 0
     if len(cart) > 0:
         while edit_action != "":
+            if len(cart)==0:
+                print("Nothing left in cart. Exiting edit cart.")
+                return
             for counter, cart_item in enumerate(cart, 1):
                 print(f"{counter}. {cart_item:<25}:{'x':>10}{cart[cart_item]} qty")
-
             edit_action = input("\n1. Change quantity\n2. Remove item\nPlease input your choice of action (ENTER to exit): ")
 
             # 1. Change quantity
