@@ -631,9 +631,9 @@ class Cryptostuff:
     def __init__(self): #This function generates the RSA key for server/client side.
         for attempt in range(5):
             try:
-                passphrase = getpass.getpass("Input passphrase for RSA keypair: ")
                 for fname in os.listdir('./client'):
                     if fname.endswith('.pem'):
+                        passphrase = getpass.getpass("Input the passphrase for your RSA keypair: ")
                         # Reading an existing RSA keypair file
                         encoded_client_public_key=open("client/public.pem","r").read()
                         self.client_public_key =  RSA.import_key(encoded_client_public_key, passphrase=passphrase)
@@ -643,6 +643,7 @@ class Cryptostuff:
                         self.client_private_key = self.client_private_key.exportKey().decode()
                         break
                 else:
+                    passphrase = getpass.getpass("Input a passphrase for generated RSA keypair: ")
                     # Generate a 2048-bit long RSA Key pair.
                     self.rsa_keypair=RSA.generate(2048)
                     # store the private key to private.pem
