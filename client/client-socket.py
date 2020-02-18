@@ -640,7 +640,7 @@ class Cryptostuff:
                 print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
             f.close()
             self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
-        clientsocket.sendall(f"CLIENTPUBLICKEY {self.client_public_key}".encode())
+        clientsocket.sendall(f"CLIENTPUBLICKEY${self.client_public_key}".encode())
         self.server_public_key = clientsocket.recv(4096).decode()
     
     def generate_aes_key(self): #This function generates the AES key
