@@ -279,13 +279,17 @@ def handler(con):#This handles server connections input
 class Cryptostuff:
     def __init__(self,client_public_key):#This function generates the RSA key.
         self.client_public_key=client_public_key
-        print("Checking RSA files")
-        with open("private.pem","r") as f:
-            self.server_private_key=f.read()
-        f.close()
-        with open("public.pem","r") as f:
-            self.server_public_key=f.read()
-        f.close()
+        self.server_public_key=self.server_private_key=""
+        print("Checking RSA files...")
+        for fname in os.listdir('.'):
+            if fname=='private.pem':
+                with open("private.pem","r") as f:
+                    self.server_private_key=f.read()
+                f.close()
+            if fname=='public.pem':
+                with open("public.pem","r") as f:
+                    self.server_public_key=f.read()
+                f.close()
         if self.server_private_key=="" or self.server_public_key=="":
             print("Generating RSA Key on server side...")
             self.rsa_keypair=RSA.generate(2048)
