@@ -22,7 +22,7 @@ today_day = today.isoweekday()
 weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # Loading a excel file in Python
-wb = load_workbook(filename='AssignmentData.xlsx')
+wb = load_workbook(filename='server/AssignmentData.xlsx')
 membership_sheet = wb['Membership'] # Set membership_sheet to Membership sheet
 customers_sheet = wb['Customers'] # Set customers_seet to Customers sheet
 preorder_sheet = wb['Preorder'] # Set membership_sheet to Membership sheet
@@ -130,7 +130,7 @@ class FileSystem:
 
     finally:
         # Saves the excel file
-        wb.save('AssignmentData.xlsx')
+        wb.save('server/AssignmentData.xlsx')
 
 
 def start_server():#This starts the server and waits for response from function "handler"
@@ -283,11 +283,11 @@ class Cryptostuff:
         print("Checking RSA files...")
         for fname in os.listdir('.'):
             if fname=='private.pem':
-                with open("private.pem","r") as f:
+                with open("server/private.pem","r") as f:
                     self.server_private_key=f.read()
                 f.close()
             if fname=='public.pem':
-                with open("public.pem","r") as f:
+                with open("server/public.pem","r") as f:
                     self.server_public_key=f.read()
                 f.close()
         if self.server_private_key=="" or self.server_public_key=="":
@@ -295,11 +295,11 @@ class Cryptostuff:
             self.rsa_keypair=RSA.generate(2048)
             self.server_private_key=self.rsa_keypair.exportKey().decode()
             self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
-            with open("private.pem","w") as f:
+            with open("server/private.pem","w") as f:
                 print(self.rsa_keypair.exportKey().decode() ,file=f)
             f.close()
             print("Private Key stored on to  'private.pem'")
-            with open("public.pem","w") as f:
+            with open("server/public.pem","w") as f:
                 print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
             f.close()
             print("Public Key stored on to  'public.pem'")
