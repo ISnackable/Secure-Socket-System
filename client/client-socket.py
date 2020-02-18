@@ -189,7 +189,7 @@ Welcome, please enter login/register.
         while captchavalidation == "FALSE": # Continue looping until captcha is correct
             clientsocket.sendall(cryptothingy.encrpyt_plaintext("CAPTCHA")) # Send CAPTCHA to receive a image captcha bytes
             captcha = clientsocket.recv(16384)
-            with open('captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
+            with open('client/captcha.png', 'wb') as captcha_image: # Create a .png file with the captcha bytes
                 captcha_image.write(captcha)
                 captcha_image.close()
             
@@ -197,14 +197,17 @@ Welcome, please enter login/register.
             imageViewerFromCommandLine = {'linux':'xdg-open',
                                   'win32':'explorer',
                                   'darwin':'open'}[sys.platform]
-            captcha_image = subprocess.Popen([imageViewerFromCommandLine, r"captcha.png"], shell=False) # Open the captcha.png image
+            captcha_image = subprocess.Popen([imageViewerFromCommandLine, r"client/captcha.png"], shell=False) # Open the captcha.png image
             
             raw_captcha = input("Enter the characters in captcha.png: ")
             if len(raw_captcha) <= 0:
                 raw_captcha = "INVALIDCAPTCHA" 
             
-            if sys.platform == "win32":
-                subprocess.Popen(f"taskkill /F /IM Microsoft.Photos.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Close the captcha.png image
+            try:
+                if sys.platform == "win32":
+                    subprocess.Popen(f"taskkill /F /IM Microsoft.Photos.exe", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) # Close the captcha.png image
+            except:
+                pass
             
             clientsocket.sendall(cryptothingy.encrpyt_plaintext(f"CAPTCHAVALIDATION {raw_captcha}".strip())) # Send CAPTCHAVALIDATION to verify if captcha is valid
             try:
@@ -619,21 +622,21 @@ def select_menu_day(choice_of_action):
 
 class Cryptostuff:
     def __init__(self): #This function generates the RSA key for server/client side.
-        for fname in os.listdir('.'):
+        for fname in os.listdir('./client'):
             if fname.endswith('.pem'):
-                self.client_public_key=open("public.pem","r").read()
-                self.client_private_key=open("private.pem","r").read()
+                self.client_public_key=open("client/public.pem","r").read()
+                self.client_private_key=open("client/private.pem","r").read()
                 break
         else:
             # Generate a 1024-bit or 2024-bit long RSA Key pair.
             self.rsa_keypair=RSA.generate(2048)
             # store the private key to private.pem
             # store the public key to public.pem
-            with open("private.pem","w") as f:
+            with open("client/private.pem","w") as f:
                 print(self.rsa_keypair.exportKey().decode() ,file=f)
             f.close()
             self.client_private_key = self.rsa_keypair.exportKey().decode()
-            with open("public.pem","w") as f:
+            with open("client/public.pem","w") as f:
                 print(self.rsa_keypair.publickey().exportKey().decode() ,file=f)
             f.close()
             self.client_public_key = self.rsa_keypair.publickey().exportKey().decode()
