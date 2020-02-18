@@ -282,7 +282,6 @@ class Cryptostuff:
             try:
                 self.server_public_key=self.server_private_key=""
                 print("Checking RSA files...")
-                no_cert_exist=False
                 for fname in os.listdir('./server'):
                     if fname.endswith('.pem'):
                         encoded_server_public_key=open("server/public.pem","r").read()
