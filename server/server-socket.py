@@ -298,9 +298,8 @@ class Cryptostuff:
                     passphrase=input("Please enter a new passphrase: ")
                     print("Generating RSA Key on server side...")
                     self.rsa_keypair=RSA.generate(2048)
-                    
-                    self.server_private_key=self.rsa_keypair.exportKey(passphrase=passphrase).decode()
-                    self.server_public_key=self.rsa_keypair.publickey().exportKey(passphrase=passphrase).decode()
+                    self.server_private_key=self.rsa_keypair.exportKey().decode()
+                    self.server_public_key=self.rsa_keypair.publickey().exportKey().decode()
                     with open("./server/private.pem","w") as f:
                         print(self.rsa_keypair.exportKey(passphrase=passphrase).decode() ,file=f)
                     f.close()
