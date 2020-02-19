@@ -296,6 +296,9 @@ class Cryptostuff:
                 else:
                     print("No RSA file detected. Creating new RSA.")
                     passphrase=input("Please enter a new passphrase: ")
+                    if passphrase=="":
+                        print("Please enter something.")
+                        continue
                     print("Generating RSA Key on server side...")
                     self.rsa_keypair=RSA.generate(2048)
                     self.server_private_key=self.rsa_keypair.exportKey().decode()

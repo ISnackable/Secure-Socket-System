@@ -644,6 +644,9 @@ class Cryptostuff:
                         break
                 else:
                     passphrase = input("Input a passphrase for generated RSA keypair: ")
+                    if passphrase=="":
+                        print("Please enter something.")
+                        continue
                     # Generate a 2048-bit long RSA Key pair.
                     self.rsa_keypair=RSA.generate(2048)
                     # store the private key to private.pem
